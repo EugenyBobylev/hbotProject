@@ -2,3 +2,4 @@
 /venv/
 /.idea/
 /hbot/__pycache__/
+/hbot/hbot.log
