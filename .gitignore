@@ -3,3 +3,4 @@
 /.idea/
 /hbot/__pycache__/
 /hbot/hbot.log
+/hbot/token.pickle
