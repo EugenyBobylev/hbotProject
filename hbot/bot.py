@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 from pathlib import Path
 
 import telebot
@@ -9,7 +8,7 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from hbot.bot_stack import BotStack
 
 # ************************** Initialisation ***************************************************
-token = os.environ.get('HBOT_TOKEN_111')
+token = os.environ.get('HBOT_TOKEN')
 if token:
     bot = telebot.TeleBot(token)
 else:
@@ -30,17 +29,45 @@ def start_message(message):
     bot.delete_message(message.chat.id, message.message_id)
 
 
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(query):
+    log_info(f'{str(query.message.chat.id)} --> {query.data}')
+    _qdata = query.data
+    if _qdata in get_tasks_dict:
+        func = get_tasks_dict[_qdata]
+        func(query.message)
+        show_home_menu(query.message.chat.id)
+
+
+def my_tasks(message):
+    clear_messages(message.chat.id)
+    msg = bot.send_message(message.chat.id, 'Here will be show all may tasks')
+    push(msg)
+
+
+def all_tasks(message):
+    clear_messages(message.chat.id)
+    msg = bot.send_message(message.chat.id, 'Here will be show all tasks')
+    push(msg)
+
+
 # ************************** bot menu methods ***************************************************
 def show_home_menu(chat_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
-        InlineKeyboardButton('Список камер', callback_data='show_cameras'),
-        InlineKeyboardButton('Снимки по группам', callback_data='show_groups')
+        InlineKeyboardButton('My tasks', callback_data='my_tasks'),
+        InlineKeyboardButton('All tasks', callback_data='all_tasks')
     )
     # keyboard.add(InlineKeyboardButton('Список камер', callback_data='show_cameras'))
     # keyboard.add(InlineKeyboardButton('Снимки по группам', callback_data='show_groups'))
-    msg = bot.send_message(chat_id, 'Выберите что нужно', reply_markup=keyboard)
+    msg = bot.send_message(chat_id, 'Select from menu', reply_markup=keyboard)
     push(msg)
+
+
+def get_home(message):
+    stack.all_count()
+    clear_messages(message.chat.id)
+    show_home_menu(message.chat.id)
 
 
 # ************************** stack methods ***************************************************
@@ -96,11 +123,9 @@ def log_error(msg: str):
 
 if __name__ == '__main__':
     get_tasks_dict = {
-    #    'show_cameras': show_cameras,
-    #    'show_groups': show_groups,
-    #    'get_home': get_home,
-    #    'send_email': send_email,
-    #    'show_calendar': show_calendar
+        'all_tasks': all_tasks,
+        'my_tasks': my_tasks,
+        'get_home': get_home
     }
     logger = create_logger()
     if token:
