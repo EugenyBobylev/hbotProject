@@ -36,38 +36,85 @@ def callback_query(query):
     if _qdata in get_tasks_dict:
         func = get_tasks_dict[_qdata]
         func(query.message)
-        show_home_menu(query.message.chat.id)
 
 
-def my_tasks(message):
+def start(message):
     clear_messages(message.chat.id)
-    msg = bot.send_message(message.chat.id, 'Here will be show all may tasks')
+    msg = bot.send_message(message.chat.id, 'Start time tracking')
     push(msg)
+    get_home(msg)
 
 
-def all_tasks(message):
+def stop(message):
     clear_messages(message.chat.id)
-    msg = bot.send_message(message.chat.id, 'Here will be show all tasks')
+    msg = bot.send_message(message.chat.id, 'Stop time tracking')
     push(msg)
+    get_home(msg)
+
+
+def get_today_report(message):
+    msg = bot.send_message(message.chat.id, 'Here will be show today report')
+    push(msg)
+    get_reports(msg)
+
+
+def get_yesterday_report(message):
+    msg = bot.send_message(message.chat.id, 'Here will be show yesterday report')
+    push(msg)
+    get_reports(msg)
+
+
+def get_monthly_report(message):
+    msg = bot.send_message(message.chat.id, 'Here will be show monthly report')
+    push(msg)
+    get_reports(msg)
+
+
+def get_weekly_report(message):
+    msg = bot.send_message(message.chat.id, 'Here will be show weekle report')
+    push(msg)
+    get_reports(msg)
+
+
+def get_bydate_report(message):
+    msg = bot.send_message(message.chat.id, 'Here will be show report for a given date')
+    push(msg)
+    get_reports(msg)
 
 
 # ************************** bot menu methods ***************************************************
-def show_home_menu(chat_id):
-    keyboard = InlineKeyboardMarkup()
-    keyboard.row(
-        InlineKeyboardButton('My tasks', callback_data='my_tasks'),
-        InlineKeyboardButton('All tasks', callback_data='all_tasks')
-    )
-    # keyboard.add(InlineKeyboardButton('Список камер', callback_data='show_cameras'))
-    # keyboard.add(InlineKeyboardButton('Снимки по группам', callback_data='show_groups'))
-    msg = bot.send_message(chat_id, 'Select from menu', reply_markup=keyboard)
-    push(msg)
-
-
 def get_home(message):
     stack.all_count()
     clear_messages(message.chat.id)
     show_home_menu(message.chat.id)
+
+
+def show_home_menu(chat_id):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton('Start', callback_data='start'),
+        InlineKeyboardButton('Stop', callback_data='stop'),
+        InlineKeyboardButton('Report', callback_data='get_reports'),
+    )
+    msg = bot.send_message(chat_id, 'Select from menu', reply_markup=keyboard)
+    push(msg)
+
+
+def get_reports(message):
+    clear_messages(message.chat.id)
+    show_reports_menu(message.chat.id)
+
+
+def show_reports_menu(chat_id):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton('today', callback_data='today_report'))
+    keyboard.add(InlineKeyboardButton('yesterday', callback_data='yesterday_report'))
+    keyboard.add(InlineKeyboardButton('weekly', callback_data='weekly_report'))
+    keyboard.add(InlineKeyboardButton('monthly', callback_data='monthly_report'))
+    keyboard.add(InlineKeyboardButton('by date', callback_data='bydate_report'))
+    keyboard.add(InlineKeyboardButton('back...', callback_data='get_home'))
+    msg = bot.send_message(chat_id, "Select report action", reply_markup=keyboard)
+    push(msg)
 
 
 # ************************** stack methods ***************************************************
@@ -123,9 +170,15 @@ def log_error(msg: str):
 
 if __name__ == '__main__':
     get_tasks_dict = {
-        'all_tasks': all_tasks,
-        'my_tasks': my_tasks,
-        'get_home': get_home
+        'get_home': get_home,
+        'get_reports': get_reports,
+        'start': start,
+        'stop': stop,
+        'today_report': get_today_report,
+        'yesterday_report': get_yesterday_report,
+        'weekly_report': get_weekly_report,
+        'monthly_report': get_monthly_report,
+        'bydate_report': get_bydate_report
     }
     logger = create_logger()
     if token:
