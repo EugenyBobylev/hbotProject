@@ -1,4 +1,5 @@
 from __future__ import print_function
+import time
 import pickle
 import os.path
 from datetime import date, datetime, timedelta
@@ -11,9 +12,10 @@ from google.auth.transport.requests import Request
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-SPREADSHEET_ID = '1IXKWLBVHitg2B1W1dse3FUOkLM8g1UnbDPS4Eseq1mk'  # TimeSheet
+SPREADSHEET_ID = '1IXKWLBVHitg2B1W1dse3FUOkLM8g1UnbDPS4Eseq1mk'  # TimeSheet table
 
 
+# *********************** google sheet date time functions *******************************
 def google_today() -> int:
     """
     get today date in google sheet format
@@ -33,7 +35,6 @@ def google_date(user_date: date) -> int:
 def google_now() -> float:
     """
     get now timestamp in google sheet format
-    :return:
     """
     d: timedelta = datetime.now() - datetime(1899, 12, 30)
     return d.total_seconds()/86400
@@ -42,14 +43,13 @@ def google_now() -> float:
 def google_datetime(user_datetime: datetime) -> float:
     """
     get date and time in google sheet format
-    :param user_datetime:
-    :return:
     """
     d: timedelta = user_datetime - datetime(1899, 12, 30)
     return d.total_seconds()/86400
 
 
-def main():
+# ******************** google sheets functions *********************************
+def get_google_sheet_srv():
     creds = None
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -64,29 +64,62 @@ def main():
             pickle.dump(creds, token)
 
     service = build('sheets', 'v4', credentials=creds)
+    return service
 
-    # Call the Sheets API
-    sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='Лист1!A1:C1').execute()
-    values = result.get('values', [])
 
-    if not values:
-        print('No data found.')
-    else:
-        for row in values:
-            print(f'{row}')
+def append_start(sheet, range):
+    now = google_now()
+    data = [[now]]
+    body = {'values': data}
+    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
+                                   valueInputOption='RAW', range=range, body=body).execute()
+    return result
 
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='Лист1!A2').execute()
-    values = result.get('values', [])
 
-    _from = google_now()
-    _to = _from + 2
-    data = [[_from, _to, 2]]
+def append_stop(sheet, range):
+    now = google_now()
+    data = [[now]]
+    body = {'values': data}
+    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
+                                   valueInputOption='RAW', range=range, body=body).execute()
+    return result
+
+
+def update_range(sheet, range):
+    data = [[range]]
     body = {'values': data}
     result = sheet.values().update(spreadsheetId=SPREADSHEET_ID,
-                                   valueInputOption='RAW', range='Лист1!A2', body=body).execute()
-    print(result)
+                                   valueInputOption='RAW', range='Лист1!D2:D2', body=body).execute()
+    return result
+
+
+def get_range(sheet):
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='Лист1!D2:D2').execute()
+    range = result['values'][0][0]
+    return range
+
+
+def to_tuple(range):
+    return (range[0:8], range[8], range[9:])
+
+
+def get_next_range(range):
+    range_tuple = to_tuple(range)
+    range_col_name = 'B' if range_tuple[1] == 'A' else 'A'
+    range_row_num = int(range_tuple[2])
+    if range_col_name == 'A':
+        range_row_num += 1
+    return range_tuple[0] + range_col_name + str(range_row_num)
 
 
 if __name__ == '__main__':
-    main()
+    srv = get_google_sheet_srv()
+    sheet = srv.spreadsheets()
+
+    prev_range = get_range(sheet)
+    next_range = get_next_range(prev_range)
+    if 'A' in next_range:
+        result = append_start(sheet, next_range)
+    else:
+        result = append_stop(sheet, next_range)
+    update_range(sheet, next_range)
