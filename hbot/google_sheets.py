@@ -1,7 +1,7 @@
 from __future__ import print_function
 import pickle
 import os.path
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -23,8 +23,30 @@ def google_today() -> int:
 
 
 def google_date(user_date: date) -> int:
+    """
+    get date in google sheet format (without time)
+    """
     d: timedelta = user_date - date(1899, 12, 30)
     return d.days
+
+
+def google_now() -> float:
+    """
+    get now timestamp in google sheet format
+    :return:
+    """
+    d: timedelta = datetime.now() - datetime(1899, 12, 30)
+    return d.total_seconds()/86400
+
+
+def google_datetime(user_datetime: datetime) -> float:
+    """
+    get date and time in google sheet format
+    :param user_datetime:
+    :return:
+    """
+    d: timedelta = user_datetime - datetime(1899, 12, 30)
+    return d.total_seconds()/86400
 
 
 def main():
@@ -57,9 +79,9 @@ def main():
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='Лист1!A2').execute()
     values = result.get('values', [])
 
-    _from = google_today()
-    _to = _from + 1
-    data = [[_from, _to, 1],]
+    _from = google_now()
+    _to = _from + 2
+    data = [[_from, _to, 2]]
     body = {'values': data}
     result = sheet.values().update(spreadsheetId=SPREADSHEET_ID,
                                    valueInputOption='RAW', range='Лист1!A2', body=body).execute()
