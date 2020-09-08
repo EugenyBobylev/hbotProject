@@ -1,6 +1,8 @@
 from __future__ import print_function
 import pickle
 import os.path
+from datetime import date, timedelta
+
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -10,6 +12,19 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
 SPREADSHEET_ID = '1IXKWLBVHitg2B1W1dse3FUOkLM8g1UnbDPS4Eseq1mk'  # TimeSheet
+
+
+def google_today() -> int:
+    """
+    get today date in google sheet format
+    """
+    d: timedelta = date.today() - date(1899, 12, 30)
+    return d.days
+
+
+def google_date(user_date: date) -> int:
+    d: timedelta = user_date - date(1899, 12, 30)
+    return d.days
 
 
 def main():
@@ -39,7 +54,12 @@ def main():
         for row in values:
             print(f'{row}')
 
-    data = [[15, 18, 3],]
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='Лист1!A2').execute()
+    values = result.get('values', [])
+
+    _from = google_today()
+    _to = _from + 1
+    data = [[_from, _to, 1],]
     body = {'values': data}
     result = sheet.values().update(spreadsheetId=SPREADSHEET_ID,
                                    valueInputOption='RAW', range='Лист1!A2', body=body).execute()
