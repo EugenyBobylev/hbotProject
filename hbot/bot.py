@@ -6,6 +6,7 @@ import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from hbot.bot_stack import BotStack
+from hbot.google_sheets import do_start_stop
 
 # ************************** Initialisation ***************************************************
 token = os.environ.get('HBOT_TOKEN')
@@ -19,17 +20,33 @@ data = {}
 
 
 # ************************** bot methods ***************************************************
+def start_new_task(message):
+    msg = bot.send_message(message.chat.id, "Input description of task")
+    push(msg)
+
+
 @bot.message_handler(commands=['start', 'stop'])
-def start_message(message):
+def command_message(message):
     log_info(f'{str(message.chat.id)} --> {message.text}')
     clear_messages(message.chat.id)
 
     if message.text == '/start':
-        start_task(message)
-        show_home_menu(message.chat.id)
+        start_new_task(message)
+        # show_home_menu(message.chat.id)
     if message.text == '/stop':
-        clear_messages(message.chat_id)
+        clear_messages(message.chat.id)
     bot.delete_message(message.chat.id, message.message_id)
+
+
+@bot.message_handler(content_types=['text'])
+def start_task_message(message):
+    do_start_stop()
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton('Stop task', callback_data='stop'),
+    )
+    msg = bot.send_message(message.chat.id, message.text, reply_markup=keyboard)
+    push(msg)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -41,11 +58,6 @@ def callback_query(query):
         func(query.message)
 
 
-def start_task(message):
-    msg = bot.send_message(message.chat.id, 'Введите описание задачи:')
-    push(msg)
-
-
 def m_start(message):
     clear_messages(message.chat.id)
     msg = bot.send_message(message.chat.id, 'Start time tracking')
@@ -55,9 +67,10 @@ def m_start(message):
 
 def m_stop(message):
     clear_messages(message.chat.id)
+    do_start_stop()
     msg = bot.send_message(message.chat.id, 'Stop time tracking')
     push(msg)
-    get_home(msg)
+    # get_home(msg)
 
 
 def get_today_report(message):
@@ -100,9 +113,9 @@ def get_home(message):
 def show_home_menu(chat_id):
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
-        InlineKeyboardButton('Start', callback_data='start'),
-        InlineKeyboardButton('Stop', callback_data='stop'),
-        InlineKeyboardButton('Report', callback_data='get_reports'),
+        InlineKeyboardButton('New task', callback_data='start'),
+        InlineKeyboardButton('Stop task', callback_data='stop'),
+        InlineKeyboardButton('Select task', callback_data='get_reports'),
     )
     msg = bot.send_message(chat_id, 'Select from menu', reply_markup=keyboard)
     push(msg)
