@@ -19,13 +19,16 @@ data = {}
 
 
 # ************************** bot methods ***************************************************
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'stop'])
 def start_message(message):
     log_info(f'{str(message.chat.id)} --> {message.text}')
     clear_messages(message.chat.id)
 
     if message.text == '/start':
+        start_task(message)
         show_home_menu(message.chat.id)
+    if message.text == '/stop':
+        clear_messages(message.chat_id)
     bot.delete_message(message.chat.id, message.message_id)
 
 
@@ -38,14 +41,19 @@ def callback_query(query):
         func(query.message)
 
 
-def start(message):
+def start_task(message):
+    msg = bot.send_message(message.chat.id, 'Введите описание задачи:')
+    push(msg)
+
+
+def m_start(message):
     clear_messages(message.chat.id)
     msg = bot.send_message(message.chat.id, 'Start time tracking')
     push(msg)
     get_home(msg)
 
 
-def stop(message):
+def m_stop(message):
     clear_messages(message.chat.id)
     msg = bot.send_message(message.chat.id, 'Stop time tracking')
     push(msg)
@@ -172,8 +180,8 @@ if __name__ == '__main__':
     get_tasks_dict = {
         'get_home': get_home,
         'get_reports': get_reports,
-        'start': start,
-        'stop': stop,
+        'start': m_start,
+        'stop': m_stop,
         'today_report': get_today_report,
         'yesterday_report': get_yesterday_report,
         'weekly_report': get_weekly_report,

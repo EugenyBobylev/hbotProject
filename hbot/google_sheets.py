@@ -12,6 +12,11 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID of TimeSheet spreadsheet.
 SPREADSHEET_ID = '1IXKWLBVHitg2B1W1dse3FUOkLM8g1UnbDPS4Eseq1mk'  # TimeSheet table
+COL_DESCR = 'A'
+COL_START = 'B'
+COL_STOP = chr(ord(COL_START) + 1)
+COL_TIME = chr(ord(COL_STOP) + 1)
+COL_RANGE = chr(ord(COL_TIME) + 1)
 
 
 # *********************** google sheet date time functions *******************************
@@ -86,10 +91,10 @@ def append_stop(sheet, range):
 
 def append_duration(srv, next_range):
     duration_range = get_grid_range(next_range)
-    duration_range["startColumnIndex"] = 2
-    duration_range["endColumnIndex"] = 3
+    duration_range["startColumnIndex"] = ord(COL_TIME) - 65
+    duration_range["endColumnIndex"] = duration_range['startColumnIndex'] + 1
     row_num = duration_range["startRowIndex"]+1
-    formula = f'=B{row_num} - A{row_num}'
+    formula = f'={COL_STOP}{row_num} - {COL_START}{row_num}'
     formula_request = get_formula_request(formula, duration_range)
     requests = [formula_request]
 
@@ -102,25 +107,25 @@ def update_range(sheet, range):
     data = [[range]]
     body = {'values': data}
     result = sheet.values().update(spreadsheetId=SPREADSHEET_ID,
-                                   valueInputOption='RAW', range='Лист1!D2:D2', body=body).execute()
+                                   valueInputOption='RAW', range=f'Лист1!{COL_RANGE}2:{COL_RANGE}2', body=body).execute()
     return result
 
 
 def get_range(sheet):
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='Лист1!D2:D2').execute()
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=f'Лист1!{COL_RANGE}2:{COL_RANGE}2').execute()
     range = result['values'][0][0]
     return range
 
 
 def a1_range_to_tuple(a1_range):
-    return (a1_range[0:8], a1_range[8], a1_range[9:])
+    return a1_range[0:8], a1_range[8], a1_range[9:]
 
 
 def get_next_range(range):
     range_tuple = a1_range_to_tuple(range)
-    range_col_name = 'B' if range_tuple[1] == 'A' else 'A'
+    range_col_name = COL_STOP if range_tuple[1] == COL_START else COL_START
     range_row_num = int(range_tuple[2])
-    if range_col_name == 'A':
+    if range_col_name == COL_START:
         range_row_num += 1
     return range_tuple[0] + range_col_name + str(range_row_num)
 
@@ -131,42 +136,12 @@ def do_start_stop():
 
     prev_range = get_range(sheet)
     next_range = get_next_range(prev_range)
-    if 'A' in next_range:
+    if COL_START in next_range:
         append_start(sheet, next_range)
     else:
         append_stop(sheet, next_range)
         append_duration(srv, next_range)
     update_range(sheet, next_range)
-
-
-def set_format_cells():
-    srv = get_google_sheet_srv()
-    sheet = srv.spreadsheets()
-
-    requests = []
-    requests.append({
-        'repeatCell': {
-            'range': {
-                'sheetId': 0,
-                'startRowIndex': 1,
-                'endRowIndex': 100,
-                'startColumnIndex': 2,
-                'endColumnIndex': 2
-            },
-            'cell': {
-                'userEnteredFormat': {
-                    'numberFormat': {
-                        'type': 'DATE',
-                        'pattern': '[hh]:[mm]:[ss]'
-                    }
-                }
-            },
-            'fields': "userEnteredFormat.numberFormat"
-        }
-    })
-    body = {'requests': requests}
-    response = srv.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID,  body=body).execute()
-    print(response)
 
 
 def get_grid_range(a1_range: str):
