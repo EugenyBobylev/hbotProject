@@ -6,7 +6,7 @@ import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from hbot.bot_stack import BotStack
-from hbot.google_sheets import do_start_stop
+from hbot.google_sheets import set_task_descr, start_task, stop_task
 
 # ************************** Initialisation ***************************************************
 token = os.environ.get('HBOT_TOKEN')
@@ -21,7 +21,8 @@ data = {}
 
 # ************************** bot methods ***************************************************
 def start_new_task(message):
-    msg = bot.send_message(message.chat.id, "Input description of task")
+    clear_messages(message.chat.id)
+    msg = bot.send_message(message.chat.id, "Input description of task:")
     push(msg)
 
 
@@ -40,12 +41,22 @@ def command_message(message):
 
 @bot.message_handler(content_types=['text'])
 def start_task_message(message):
-    do_start_stop()
+    if message.text == 'waiting please...':
+        return
+    task_description = message.text
+    chat_id = message.chat.id
+    push(message)
+    clear_messages(chat_id)
+    msg = bot.send_message(chat_id=chat_id, text='waiting please...')
+
+    set_task_descr(task_description)
+    start_task()
     keyboard = InlineKeyboardMarkup()
     keyboard.row(
         InlineKeyboardButton('Stop task', callback_data='stop'),
     )
-    msg = bot.send_message(message.chat.id, message.text, reply_markup=keyboard)
+    bot.delete_message(chat_id, msg.message_id)
+    msg = bot.send_message(message.chat.id, f'running:"{task_description}"', reply_markup=keyboard)
     push(msg)
 
 
@@ -67,9 +78,10 @@ def m_start(message):
 
 def m_stop(message):
     clear_messages(message.chat.id)
-    do_start_stop()
-    msg = bot.send_message(message.chat.id, 'Stop time tracking')
+    stop_task()
+    msg = bot.send_message(message.chat.id, 'Task running ended')
     push(msg)
+    start_new_task(msg)
     # get_home(msg)
 
 

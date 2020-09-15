@@ -71,38 +71,6 @@ def get_google_sheet_srv():
     return service
 
 
-def append_start(sheet, range):
-    now = google_now()
-    data = [[now]]
-    body = {'values': data}
-    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
-                                   valueInputOption='RAW', range=range, body=body).execute()
-    return result
-
-
-def append_stop(sheet, range):
-    now = google_now()
-    data = [[now]]
-    body = {'values': data}
-    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
-                                   valueInputOption='RAW', range=range, body=body).execute()
-    return result
-
-
-def append_duration(srv, next_range):
-    duration_range = get_grid_range(next_range)
-    duration_range["startColumnIndex"] = ord(COL_TIME) - 65
-    duration_range["endColumnIndex"] = duration_range['startColumnIndex'] + 1
-    row_num = duration_range["startRowIndex"]+1
-    formula = f'={COL_STOP}{row_num} - {COL_START}{row_num}'
-    formula_request = get_formula_request(formula, duration_range)
-    requests = [formula_request]
-
-    body = {'requests': requests}
-    result = srv.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-    return result
-
-
 def update_range(sheet, range):
     data = [[range]]
     body = {'values': data}
@@ -121,27 +89,25 @@ def a1_range_to_tuple(a1_range):
     return a1_range[0:8], a1_range[8], a1_range[9:]
 
 
-def get_next_range(range):
-    range_tuple = a1_range_to_tuple(range)
-    range_col_name = COL_STOP if range_tuple[1] == COL_START else COL_START
-    range_row_num = int(range_tuple[2])
-    if range_col_name == COL_START:
-        range_row_num += 1
-    return range_tuple[0] + range_col_name + str(range_row_num)
+def to_column_range(range, col_name):
+    t = a1_range_to_tuple(range)
+    return t[0] + col_name + t[2]
 
 
-def do_start_stop():
-    srv = get_google_sheet_srv()
-    sheet = srv.spreadsheets()
+def to_next_row_range(a1_range):
+    t = a1_range_to_tuple(a1_range)
+    range_row_num = int(t[2])
+    range_row_num += 1
+    return t[0] + t[1] + str(range_row_num)
 
-    prev_range = get_range(sheet)
-    next_range = get_next_range(prev_range)
-    if COL_START in next_range:
-        append_start(sheet, next_range)
+
+def get_next_range(a1_range):
+    if COL_START in a1_range:
+        range = to_column_range(a1_range, COL_STOP)
     else:
-        append_stop(sheet, next_range)
-        append_duration(srv, next_range)
-    update_range(sheet, next_range)
+        range = to_column_range(a1_range, COL_START)
+        range = to_next_row_range(range)
+    return range
 
 
 def get_grid_range(a1_range: str):
@@ -187,8 +153,84 @@ def set_formula(formula: str, a1_range):
     return result
 
 
-if __name__ == '__main__':
-    do_start_stop()
+def _set_task_descr(sheet, descr):
+    range = get_range(sheet)
+    range = to_next_row_range(range)
+    range = to_column_range(range, COL_DESCR)
+    data = [[descr]]
+    body = {'values': data}
+    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
+                                   valueInputOption='RAW', range=range, body=body).execute()
+    return result
 
-    # result = set_formula(formula='=B2-A2', a1_range="'Лист1'!C2")
-    # print(result)
+
+def _start_task(sheet, range):
+    now = google_now()
+    data = [[now]]
+    body = {'values': data}
+    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
+                                   valueInputOption='RAW', range=range, body=body).execute()
+    return result
+
+
+def _stop_task(sheet, range):
+    now = google_now()
+    data = [[now]]
+    body = {'values': data}
+    result = sheet.values().append(spreadsheetId=SPREADSHEET_ID,
+                                   valueInputOption='RAW', range=range, body=body).execute()
+    return result
+
+
+def _set_task_duration(srv, range):
+    duration_range = get_grid_range(range)
+    duration_range["startColumnIndex"] = ord(COL_TIME) - 65
+    duration_range["endColumnIndex"] = duration_range['startColumnIndex'] + 1
+    row_num = duration_range["startRowIndex"]+1
+    formula = f'={COL_STOP}{row_num} - {COL_START}{row_num}'
+    formula_request = get_formula_request(formula, duration_range)
+    requests = [formula_request]
+
+    body = {'requests': requests}
+    result = srv.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+    return result
+
+
+def set_task_descr(descr):
+    srv = get_google_sheet_srv()
+    sheet = srv.spreadsheets()
+    res = _set_task_descr(sheet, descr)
+    if 'updates' in res and 'updatedRange' in res['updates']:
+        _updated_range = res['updates']['updatedRange']
+        update_range(sheet, _updated_range)
+    return res
+
+
+def start_task():
+    srv = get_google_sheet_srv()
+    sheet = srv.spreadsheets()
+    range = get_range(sheet)
+    range = to_column_range(range, COL_START)
+    res = _start_task(sheet, range)
+    update_range(sheet, range)
+    return res
+
+
+def stop_task():
+    srv = get_google_sheet_srv()
+    sheet = srv.spreadsheets()
+    range = get_range(sheet)
+    
+    range = to_column_range(range, COL_STOP)
+    res = _stop_task(sheet, range)
+    update_range(sheet, range)
+    _set_task_duration(srv, range)
+    return res
+
+
+# if __name__ == '__main__':
+    # res = set_task_descr('Приготовить плов')
+    # res = start_task()
+    # res = stop_task()
+    # print(res)
+
